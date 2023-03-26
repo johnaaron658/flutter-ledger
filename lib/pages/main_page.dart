@@ -29,6 +29,7 @@ class MainPage extends StatelessWidget {
           }
         ),
       ),
+      resizeToAvoidBottomInset: false,
 
       body: PageView.builder(
         itemCount: pages.length,

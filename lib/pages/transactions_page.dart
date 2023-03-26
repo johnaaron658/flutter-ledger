@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:ledger/components/transaction_form.dart';
+import 'package:ledger/components/transaction_list.dart';
 import 'package:ledger/models/transaction.dart';
 import 'package:ledger/pages/main_page.dart';
 import 'package:ledger/services/mock_data_src.dart';
@@ -10,18 +12,24 @@ class TransactionsPage extends NavPage {
 
   TransactionsPage({super.key});
 
+  late BuildContext pageContext;
+
   @override
   Widget build(BuildContext context) {
+    pageContext = context;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Expanded(flex: 1, child: Text('')),
-        Expanded(flex: 13, child: StreamBuilder<bool>(
-          stream: super.isInView.stream,
-          builder: (context, snapshot) {
-            return TransactionList();
-          }
-        )),
+        Expanded(
+            flex: 13,
+            child: StreamBuilder<bool>(
+                stream: super.isInView.stream,
+                builder: (context, snapshot) {
+                  return TransactionList(
+                    transactionQuery: transactionRepo.getAllTransactions,
+                  );
+                })),
         Expanded(
           flex: 2,
           child: ButtonBar(
@@ -29,7 +37,9 @@ class TransactionsPage extends NavPage {
             alignment: MainAxisAlignment.spaceAround,
             children: [
               TransactionButton(
-                  icon: Icons.add, label: 'Income', onPressed: onIncomePressed),
+                  icon: Icons.add,
+                  label: 'Income',
+                  onPressed: onIncomePressed),
               TransactionButton(
                 icon: Icons.multiple_stop,
                 label: 'Transfer',
@@ -57,56 +67,31 @@ class TransactionsPage extends NavPage {
   }
 
   void onTransferPressed() {
+    showModal();
   }
 
   void onExpensePressed() {
     transactionRepo.removeTransaction(3);
   }
-}
 
-class TransactionList extends StatelessWidget {
-  TransactionList({
-    Key? key,
-  }) : super(key: key);
-
-  final transactionRepo = GetIt.instance.get<TransactionsRepo>();
-
-  @override
-  Widget build(BuildContext context) {
-    transactionRepo.getAllTransactions();
-
-    return StreamBuilder<List<Transaction>>(
-      stream: transactionRepo.transactionStream,
-      builder: (context, snapshot) {
-        final transactions = snapshot.data;
-        if (transactions != null && transactions!.isNotEmpty) {
-          return ListView.builder(
-            scrollDirection: Axis.vertical,
-            addAutomaticKeepAlives: true,
-            itemCount: transactions.length,
-            itemBuilder: (context, index) => TransactionItem(transaction: transactions[index],),
-          );
-        }
-        return const Text('There are no transactions');
-      },
-    );
+  void showModal() {
+    showModalBottomSheet(
+      isScrollControlled: true,
+        builder: (context) {
+          return const TransactionInputModal();
+        },
+        context: pageContext);
   }
 }
 
-class TransactionItem extends StatelessWidget {
-  final Transaction transaction;
-
-  const TransactionItem({super.key, required this.transaction});
+class TransactionInputModal extends StatelessWidget {
+  const TransactionInputModal({
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text('value: ${transaction.value}'),
-        Text('debit: ${transaction.debit.name}'),
-        Text('credit: ${transaction.credit.name}'),
-      ],
-    );
+    return const TransactionForm();
   }
 }
 
