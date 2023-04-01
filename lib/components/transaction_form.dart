@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
+import 'package:ledger/models/account.dart';
+import 'package:ledger/models/transaction.dart';
+import 'package:ledger/services/accounts_repository.dart';
+import 'package:ledger/services/transactions_repository.dart';
 
 class TransactionForm extends StatefulWidget {
-  const TransactionForm({super.key});
+  final Function onFormClosed;
+
+
+  const TransactionForm({super.key, required this.onFormClosed}); 
 
   @override
   State<TransactionForm> createState() => _TransactionFormState();
@@ -11,7 +19,15 @@ class TransactionForm extends StatefulWidget {
 
 class _TransactionFormState extends State<TransactionForm> {
 
+  final transactionRepo = GetIt.instance.get<TransactionsRepo>();
+
   TextEditingController amountController = TextEditingController();
+
+  Account accountFrom = const Account(balance: 0, name: '', currency: '', accountType: AccountType.Asset, subAccounts: [], limit: 0);
+  Account accountTo = const Account(balance: 0, name: '', currency: '', accountType: AccountType.Asset, subAccounts: [], limit: 0);
+  double amount = 0;
+  DateTime date = DateTime.now();
+  String details = '';
 
   @override
   Widget build(BuildContext context) {
@@ -25,76 +41,74 @@ class _TransactionFormState extends State<TransactionForm> {
 
             ),
             child: Column(
-                  children: [
-                    Autocomplete<String>(optionsBuilder: ((textEditingValue) {
-                      return [];
-                    }), onSelected: (value) {
-
-                    },
-                    fieldViewBuilder: ((context, textEditingController, focusNode, onFieldSubmitted) {
-                      return TextField(
-                        controller: textEditingController,
-                        focusNode: focusNode,
-                        decoration: const InputDecoration(
-                          labelText: 'Account From',
-                        ),
-                      );
-                    })),
-                    Autocomplete<String>(optionsBuilder: ((textEditingValue) {
-                      return [];
-                    }), onSelected: (value) {
-
-                    },
-                    fieldViewBuilder: ((context, textEditingController, focusNode, onFieldSubmitted) {
-                      return TextField(
-                        controller: textEditingController,
-                        focusNode: focusNode,
-                        decoration: const InputDecoration(
-                          labelText: 'Account To',
-                        ),
-                      );
-                    })),
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 6,
-                          child: TextField(
-                            controller: amountController,
-                            decoration: const InputDecoration(
-                              labelText: 'Amount',
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),],
-                            onChanged: (value) {
-                              final formatter = NumberFormat('#,###.##', 'en_US');
-                              final text = formatter.format(double.tryParse(value) ?? 0.00);
-                              if (text != value) {
-                                // Set the formatted text back to the TextField
-                                final valueToSet = value.substring(value.length - 1) == '.' ? value : text;
-                                amountController.value = TextEditingValue(
-                                  text:  valueToSet,
-                                  selection: TextSelection.collapsed(offset: valueToSet.length),
-                                );
-                              } 
-                            },
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: AccountField(labelText: 'Account From', onAccountChanged: ((account) => accountFrom = account)),
                           ),
-                        ), 
-                        Expanded(flex: 4, child: DateField(labelText: 'Date', initialDate: DateTime.now(), onDateChanged: (date) {})),
-                      ],
-                    ),
-                    const TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Details',
+                          Expanded(
+                            flex: 1,
+                            child: AccountField(labelText: 'Account To', onAccountChanged: ((account) => accountTo = account)),
+                          ),
+                        ],
                       ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {},
-                      child: const Text('Add'),
-                    ),
-                  ],
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 6,
+                            child: TextField(
+                              controller: amountController,
+                              decoration: const InputDecoration(
+                                labelText: 'Amount',
+                              ),
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),],
+                              onChanged: (value) {
+                                final formatter = NumberFormat('#,###.##', 'en_US');
+                                amount = double.tryParse(value) ?? 0.00;
+                                final text = formatter.format(amount);
+                                if (text != value) {
+                                  // Set the formatted text back to the TextField
+                                  final valueToSet = value.substring(value.length - 1) == '.' ? value : text;
+                                  amountController.value = TextEditingValue(
+                                    text:  valueToSet,
+                                    selection: TextSelection.collapsed(offset: valueToSet.length),
+                                  );
+                                } 
+                              },
+                            ),
+                          ), 
+                          Expanded(flex: 4, child: DateField(labelText: 'Date', initialDate: DateTime.now(), onDateChanged: (date) {})),
+                        ],
+                      ),
+                      TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Details',
+                        ),
+                        onChanged: (value) {
+                          details = value;
+                        },
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          widget.onFormClosed();
+                          transactionRepo.addTransaction(Transaction(
+                            debit: accountTo,
+                            credit: accountFrom,
+                            value: amount,
+                            dateTime: date,
+                            details: details,
+                          ));
+                        },
+                        child: const Text('Transfer'),
+                      ),
+                    ],
                 ),
           );
   }
+
 }
 
 class DateField extends StatefulWidget {
@@ -102,7 +116,7 @@ class DateField extends StatefulWidget {
   final DateTime initialDate;
   final Function(DateTime) onDateChanged;
 
-  const DateField({
+  const DateField({super.key, 
     required this.labelText,
     required this.initialDate,
     required this.onDateChanged,
@@ -163,4 +177,53 @@ class _DateFieldState extends State<DateField> {
   }
 }
 
+class AccountField extends StatelessWidget {
+  final String labelText;
+  final Function(Account) onAccountChanged;
 
+  AccountField({super.key, 
+    required this.labelText,
+    required this.onAccountChanged,
+  });
+
+  final accountsRepo = GetIt.instance.get<AccountsRepo>();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Account>>(
+      stream: accountsRepo.accountStream,
+      builder: (context, snapshot) => Autocomplete<String>(
+        optionsBuilder: (textEditingValue) {
+          final accounts = snapshot.data;
+          if (accounts != null) {
+            return filterOptions(accounts, textEditingValue);
+          }
+          return [];
+        } , 
+        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+          return TextField(
+            controller: textEditingController,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              labelText: labelText,
+            ),
+            onChanged: (value) {
+              onAccountChanged(getAccountWithName(value));
+            },
+          );
+        },
+        onSelected: (value) => onAccountChanged(getAccountWithName(value)),
+      )
+    );
+  }
+
+  Account getAccountWithName(String name) {
+    return accountsRepo.getAccountWithName(name) ?? Account(balance: 0, name: name, currency: '', accountType: AccountType.Asset, subAccounts: [], limit: 0);
+  }
+
+  List<String> filterOptions(List<Account> accounts, TextEditingValue textEditingValue) => 
+      accounts
+      .map((e) => e.name)
+      .where((element) => element.toLowerCase().startsWith(textEditingValue.text.toLowerCase()))
+      .toList();
+}

@@ -78,20 +78,24 @@ class TransactionsPage extends NavPage {
     showModalBottomSheet(
       isScrollControlled: true,
         builder: (context) {
-          return const TransactionInputModal();
+          return TransactionInputModal(onModalClosed: () {
+            Navigator.pop(context);
+          },);
         },
         context: pageContext);
   }
 }
 
 class TransactionInputModal extends StatelessWidget {
-  const TransactionInputModal({
+  final Function onModalClosed;
+  TransactionInputModal({
     Key? key,
+    required this.onModalClosed,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const TransactionForm();
+    return TransactionForm(onFormClosed: onModalClosed,);
   }
 }
 
