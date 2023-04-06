@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:ledger/components/transaction_form.dart';
 import 'package:ledger/components/transaction_list.dart';
-import 'package:ledger/models/transaction.dart';
 import 'package:ledger/pages/main_page.dart';
-import 'package:ledger/services/mock_data_src.dart';
 import 'package:ledger/services/transactions_repository.dart';
 
 class TransactionsPage extends NavPage {
@@ -27,7 +25,7 @@ class TransactionsPage extends NavPage {
                 stream: super.isInView.stream,
                 builder: (context, snapshot) {
                   return TransactionList(
-                    transactionQuery: transactionRepo.getAllTransactions,
+                    transactionQuery: transactionRepo.refreshTransactionList,
                   );
                 })),
         Expanded(
@@ -56,14 +54,8 @@ class TransactionsPage extends NavPage {
     );
   }
 
-  void onIncomePressed() {
-    transactionRepo.addTransaction(Transaction(
-        id: 3,
-        value: 100.0,
-        debit: DataSource.accounts[0],
-        credit: DataSource.accounts[1],
-        dateTime: DateTime.now(),
-        details: 'details 1'));
+  void onIncomePressed() async {
+    // todo
   }
 
   void onTransferPressed() {
@@ -71,7 +63,7 @@ class TransactionsPage extends NavPage {
   }
 
   void onExpensePressed() {
-    transactionRepo.removeTransaction(3);
+    // todo
   }
 
   void showModal() {

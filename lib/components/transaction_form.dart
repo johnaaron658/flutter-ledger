@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
-import 'package:ledger/models/account.dart';
-import 'package:ledger/models/transaction.dart';
 import 'package:ledger/services/accounts_repository.dart';
 import 'package:ledger/services/transactions_repository.dart';
 
@@ -23,8 +21,8 @@ class _TransactionFormState extends State<TransactionForm> {
 
   TextEditingController amountController = TextEditingController();
 
-  Account accountFrom = const Account(balance: 0, name: '', currency: '', accountType: AccountType.Asset, subAccounts: [], limit: 0);
-  Account accountTo = const Account(balance: 0, name: '', currency: '', accountType: AccountType.Asset, subAccounts: [], limit: 0);
+  late Account accountFrom;
+  late Account accountTo;
   double amount = 0;
   DateTime date = DateTime.now();
   String details = '';
@@ -92,15 +90,10 @@ class _TransactionFormState extends State<TransactionForm> {
                         },
                       ),
                       ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          await transactionRepo.addTransaction(
+                            Transaction.fromValues(amount, accountTo, accountFrom, date, details));
                           widget.onFormClosed();
-                          transactionRepo.addTransaction(Transaction(
-                            debit: accountTo,
-                            credit: accountFrom,
-                            value: amount,
-                            dateTime: date,
-                            details: details,
-                          ));
                         },
                         child: const Text('Transfer'),
                       ),
@@ -190,6 +183,8 @@ class AccountField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    accountsRepo.refreshAccountList();
+
     return StreamBuilder<List<Account>>(
       stream: accountsRepo.accountStream,
       builder: (context, snapshot) => Autocomplete<String>(
@@ -218,7 +213,7 @@ class AccountField extends StatelessWidget {
   }
 
   Account getAccountWithName(String name) {
-    return accountsRepo.getAccountWithName(name) ?? Account(balance: 0, name: name, currency: '', accountType: AccountType.Asset, subAccounts: [], limit: 0);
+    return accountsRepo.getAccountWithName(name) ?? Account.fromName(name);
   }
 
   List<String> filterOptions(List<Account> accounts, TextEditingValue textEditingValue) => 

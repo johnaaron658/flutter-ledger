@@ -2,8 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
-import 'package:ledger/models/account.dart';
-import 'package:ledger/models/transaction.dart';
+import 'package:ledger/services/accounts_repository.dart';
 import 'package:ledger/services/transactions_repository.dart';
 
 
@@ -62,7 +61,7 @@ class TransactionItem extends StatelessWidget {
           // TODO: implement edit
         }
         if (value == 1) {
-          transactionRepo.removeTransaction(transaction.id!);
+          transactionRepo.removeTransaction(transaction.id);
         }
       },
       itemBuilder: (context) => <PopupMenuEntry<int>>[
@@ -119,7 +118,7 @@ class TransactionItem extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Text(
-          '${NumberFormat.decimalPattern('en_us').format(transaction.value)} ${transaction.debit.currency}',
+          '${NumberFormat.decimalPattern('en_us').format(transaction.amount)} ${transaction.debit.currency}',
           style:
               TextStyle(fontSize: primaryFontSize, fontWeight: FontWeight.bold),
         ),
