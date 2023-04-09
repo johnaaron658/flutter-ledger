@@ -73,7 +73,7 @@ class TransactionsPage extends NavPage {
           return TransactionForm(onFormClosed: () {
             Navigator.pop(context);
           },
-          transactionType: type,);
+          transactionType: type, transaction: null,);
         },
         context: pageContext);
   }

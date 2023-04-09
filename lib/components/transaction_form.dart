@@ -14,11 +14,13 @@ enum TransactionType {
 class TransactionForm extends StatefulWidget {
   final Function onFormClosed;
   final TransactionType transactionType;
+  final Transaction? transaction;
 
   const TransactionForm({
     super.key, 
     required this.onFormClosed,
     required this.transactionType,
+    required this.transaction
   }); 
 
   @override
@@ -27,12 +29,26 @@ class TransactionForm extends StatefulWidget {
 
 class _TransactionFormState extends State<TransactionForm> {
   final transactionRepo = GetIt.instance.get<TransactionsRepo>();
+  TextEditingController detailsController = TextEditingController();
 
-  late Account accountFrom;
-  late Account accountTo;
+  late Account? accountFrom;
+  late Account? accountTo;
   double amount = 0;
   DateTime date = DateTime.now();
   String details = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.transaction != null) {
+      accountFrom = widget.transaction!.accountFrom;
+      accountTo = widget.transaction!.accountTo;
+      amount = widget.transaction!.amount;
+      date = widget.transaction!.date;
+      details = widget.transaction!.details;
+      detailsController.value = TextEditingValue(text: details);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,11 +68,25 @@ class _TransactionFormState extends State<TransactionForm> {
                         children: [
                           Expanded(
                             flex: 1,
-                            child: AccountField(labelText: type == TransactionType.Income ? 'Income From' : 'From Account', onAccountChanged: ((account) => accountFrom = account), transactionType: type, isCredit: true),
+                            child: AccountField(
+                                    labelText: type == TransactionType.Income
+                                        ? 'Income From'
+                                        : 'From Account',
+                                    onAccountChanged: ((account) => accountFrom = account),
+                                    transactionType: type,
+                                    isCredit: true,
+                                    initialValue: accountFrom != null ? accountFrom!.name : '',),
                           ),
                           Expanded(
                             flex: 1,
-                            child: AccountField(labelText: type == TransactionType.Expense ? 'Expense To' : 'To Account', onAccountChanged: ((account) => accountTo = account), transactionType: type, isCredit: false),
+                            child: AccountField(
+                                    labelText: type == TransactionType.Expense
+                                        ? 'Expense To'
+                                        : 'To Account',
+                                    onAccountChanged: ((account) => accountTo = account),
+                                    transactionType: type,
+                                    isCredit: false,
+                                    initialValue: accountTo != null ? accountTo!.name : ''),
                           ),
                         ],
                       ),
@@ -64,12 +94,25 @@ class _TransactionFormState extends State<TransactionForm> {
                         children: [
                           Expanded(
                             flex: 6,
-                            child: AmountField(labelText: 'Amount', initialValue: 0, onAmountChanged: ((amt) => amount = amt)),
+                            child: AmountField(
+                                labelText: 'Amount',
+                                initialValue: amount,
+                                onAmountChanged: ((amt) => amount = amt)),
                           ), 
-                          Expanded(flex: 4, child: DateField(labelText: 'Date', initialDate: DateTime.now(), onDateChanged: (dt) {date = dt;})),
+                          Expanded(
+                              flex: 4,
+                              child: DateField(
+                                  labelText: 'Date',
+                                  initialDate: date,
+                                  onDateChanged: (dt) {
+                                    date = dt;
+                                  }
+                                )
+                          ),
                         ],
                       ),
                       TextField(
+                        controller: detailsController,
                         decoration: const InputDecoration(
                           labelText: 'Details',
                         ),
@@ -79,18 +122,31 @@ class _TransactionFormState extends State<TransactionForm> {
                       ),
                       ElevatedButton(
                         onPressed: () async {
-                          await transactionRepo.addTransaction(
-                            Transaction.fromValues(amount, accountTo, accountFrom, date, details));
+                          if (widget.transaction == null) {
+                            await transactionRepo.addTransaction(
+                              Transaction.fromValues(amount, accountTo!, accountFrom!, date, details));
+                          } else {
+                            widget.transaction!.amount = amount;
+                            widget.transaction!.accountFrom = accountFrom!;
+                            widget.transaction!.accountTo = accountTo!;
+                            widget.transaction!.date = date;
+                            widget.transaction!.details = details;
+                            await transactionRepo.updateTransaction(widget.transaction!);
+                          }
                           widget.onFormClosed();
                         },
-                        child: Text(getButtonText(type)),
+                        child: Text(getButtonText(type, widget.transaction)),
                       ),
                     ],
                 ),
           );
   }
 
-  String getButtonText(TransactionType type) {
+  String getButtonText(TransactionType type, Transaction? transaction) {
+    // when editing
+    if (transaction != null) {
+      return 'Update';
+    }
     switch (type) {
       case TransactionType.Income:
         return 'Cash In';
@@ -119,22 +175,25 @@ class AmountField extends StatefulWidget {
 
 class _AmountFieldState extends State<AmountField> {
   late double amount;
+  TextEditingController controller = TextEditingController();
+  final formatter = NumberFormat('#,###.##', 'en_US');
   
   @override
   void initState() {
     super.initState();
     amount = widget.initialValue;
+    controller.value = TextEditingValue(text: formatter.format(amount));
   }
 
   @override
   Widget build(BuildContext context) {
       return TextField(
+                controller: controller,
                 decoration: InputDecoration(
                   labelText: widget.labelText,
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (value) {
-                  final formatter = NumberFormat('#,###.##', 'en_US');
                   amount = double.tryParse(value) ?? 0.00;
                   widget.onAmountChanged(amount);
                 },
@@ -214,12 +273,14 @@ class AccountField extends StatelessWidget {
   final Function(Account) onAccountChanged;
   final TransactionType transactionType;
   final bool isCredit;
+  final String initialValue;
 
   AccountField({super.key, 
     required this.labelText,
     required this.onAccountChanged, 
     required this.transactionType,
     required this.isCredit,
+    required this.initialValue,
   });
 
   final accountsRepo = GetIt.instance.get<AccountsRepo>();
@@ -231,6 +292,7 @@ class AccountField extends StatelessWidget {
     return StreamBuilder<List<Account>>(
       stream: accountsRepo.accountStream,
       builder: (context, snapshot) => Autocomplete<String>(
+        initialValue: TextEditingValue(text: initialValue),
         optionsBuilder: (textEditingValue) {
           final accounts = snapshot.data;
           if (accounts != null) {

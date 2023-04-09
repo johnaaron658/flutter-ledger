@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
+import 'package:ledger/components/transaction_form.dart';
 import 'package:ledger/services/accounts_repository.dart';
 import 'package:ledger/services/transactions_repository.dart';
 
@@ -14,9 +15,11 @@ class TransactionItem extends StatelessWidget {
   TransactionItem({super.key, required this.transaction});
 
   final transactionRepo = GetIt.instance.get<TransactionsRepo>();
+  late BuildContext pageContext;
 
   @override
   Widget build(BuildContext context) {
+    pageContext = context;
     return SizedBox(
       height: 48,
       child: Row(
@@ -57,8 +60,16 @@ class TransactionItem extends StatelessWidget {
       padding: EdgeInsets.zero,
       onSelected: (value) {
         if (value == 0) {
-          // ignore: todo
-          // TODO: implement edit
+          if (transaction.debit.accountType == AccountType.Expense)
+          {
+            showModal(TransactionType.Expense, transaction);
+          }
+          else if (transaction.credit.accountType == AccountType.Income)
+          {
+            showModal(TransactionType.Income, transaction);
+          } else {
+            showModal(TransactionType.Transfer, transaction);
+          }
         }
         if (value == 1) {
           transactionRepo.removeTransaction(transaction.id);
@@ -206,6 +217,18 @@ class TransactionItem extends StatelessWidget {
     }
 
     return color;
+  }
+
+  void showModal(TransactionType type, Transaction transaction) {
+    showModalBottomSheet(
+      isScrollControlled: true,
+        builder: (context) {
+          return TransactionForm(onFormClosed: () {
+            Navigator.pop(context);
+          },
+          transactionType: type, transaction: transaction,);
+        },
+        context: pageContext);
   }
 }
 

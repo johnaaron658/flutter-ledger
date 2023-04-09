@@ -60,6 +60,13 @@ class Transaction {
   late DateTime dateTime;
   late String details;
 
+  Account get accountFrom => credit;
+  set accountFrom(value) => credit = value;
+  Account get accountTo => debit;
+  set accountTo(value) => debit = value;
+  DateTime get date => dateTime;
+  set date(value) => dateTime = value;
+
   Transaction() {
     amount = 0;
     debit = Account();
@@ -126,6 +133,7 @@ class TransactionsRepo {
     Database db = await AppDatabase.instance.db;
     transaction.id = await db.insert(Transaction.tbTransactions, transaction.toMap());
 
+    // TODO: add updating account balances
     await refreshTransactionList();
   }
 
@@ -133,9 +141,15 @@ class TransactionsRepo {
     Database db = await AppDatabase.instance.db;
     await db.delete(Transaction.tbTransactions, where: '${Transaction.colId} = ?', whereArgs: [id]);
 
+    // TODO: add updating account balances
     await refreshTransactionList();
   }
 
-  void updateTransaction(Transaction transaction) async {
+  Future updateTransaction(Transaction transaction) async {
+    Database db = await AppDatabase.instance.db;
+    await db.update(Transaction.tbTransactions, transaction.toMap(), where: '${Transaction.colId} = ?', whereArgs: [transaction.id]);
+
+    // TODO: add updating account balances
+    await refreshTransactionList();
   }
 }
