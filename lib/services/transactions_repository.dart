@@ -15,7 +15,7 @@ class Transaction {
   static const String colDateTime = 'datetime';
   static const String colDetails = 'details';
   static const String createTableSql = '''
-                              CREATE TABLE ${Transaction.tbTransactions} ( 
+                              CREATE TABLE IF NOT EXISTS ${Transaction.tbTransactions} ( 
                                 ${Transaction.colId} INTEGER PRIMARY KEY AUTOINCREMENT, 
                                 ${Transaction.colAmount} REAL,
                                 ${Transaction.colDebit} INTEGER,
@@ -49,7 +49,8 @@ class Transaction {
 
                               from ${Transaction.tbTransactions} t
                               inner join ${Account.tbAccounts} da on t.${Transaction.colDebit} = da.${Account.colId}
-                              inner join ${Account.tbAccounts} ca on t.${Transaction.colCredit} = ca.${Account.colId};
+                              inner join ${Account.tbAccounts} ca on t.${Transaction.colCredit} = ca.${Account.colId}
+                              ORDER BY ${Transaction.colDateTime} ASC;
                               ''';
 
   late int id;
@@ -98,7 +99,6 @@ class TransactionsRepo {
 
   Future refreshTransactionList() async {
     Database db = await AppDatabase.instance.db;
-    await printSql();
     _transactions.add(await db.rawQuery(Transaction.queryTableSql)
                               .then((value) => value.map((e) => Transaction.fromMap(e)).toList()));
   }
@@ -130,11 +130,6 @@ class TransactionsRepo {
   }
 
   void removeTransaction(int id) async {
-    // Transaction transaction = DataSource.transactions.where((element) => element.id == id).first;
-    // transaction.debit.balance -= transaction.amount;
-    // transaction.credit.balance += transaction.amount;
-    // DataSource.transactions.removeWhere((element) => element.id == id);
-    // _transactions.add(transactionList);
     Database db = await AppDatabase.instance.db;
     await db.delete(Transaction.tbTransactions, where: '${Transaction.colId} = ?', whereArgs: [id]);
 

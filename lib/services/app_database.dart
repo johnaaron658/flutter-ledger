@@ -1,7 +1,7 @@
 
-import 'package:path/path.dart';
+import 'package:path/path.dart' as pt;
 import 'package:ledger/services/transactions_repository.dart' as tr;
-import 'package:ledger/services/accounts_repository.dart';
+import 'package:ledger/services/accounts_repository.dart' as ar;
 import 'package:sqflite/sqflite.dart';
 
 class AppDatabase {
@@ -18,10 +18,10 @@ class AppDatabase {
 
   Future<Database> initDb(String filePath) async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+    final path = pt.join(dbPath, filePath);
     _db = await openDatabase(path, version: 1,
                 onCreate: (Database db, int version) async {
-                            await db.execute(Account.createTableSql);
+                            await db.execute(ar.Account.createTableSql);
                             await db.execute(tr.Transaction.createTableSql);
                           }
                 );

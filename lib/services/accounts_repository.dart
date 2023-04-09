@@ -12,7 +12,7 @@ class Account {
   static const String colAccountType = 'accountType';
   static const String colLimit = 'accountLimit';
   static const String createTableSql = '''
-                              CREATE TABLE ${Account.tbAccounts} ( 
+                              CREATE TABLE IF NOT EXISTS ${Account.tbAccounts} ( 
                                 ${Account.colId} INTEGER PRIMARY KEY AUTOINCREMENT, 
                                 ${Account.colBalance} REAL,
                                 ${Account.colName} TEXT,
@@ -117,18 +117,20 @@ class AccountsRepo {
   ValueStream<List<Account>> get accountStream => _accounts.stream;
 
   Future refreshAccountList() async {
-      Database db = await AppDatabase.instance.db;
-      _accounts.add(await db.query(Account.tbAccounts)
-                            .then((res) => res.map((e) => Account.fromMap(e, '')).toList()));
+    Database db = await AppDatabase.instance.db;
+    _accounts.add(await db.query(Account.tbAccounts)
+                          .then((res) => res.map((e) => Account.fromMap(e, '')).toList()));
   }
 
   Future addAccount(Account account) async {
-      Database db = await AppDatabase.instance.db;
+    Database db = await AppDatabase.instance.db;
     account.id = await db!.insert(Account.tbAccounts, account.toMap());
     await refreshAccountList();
   }
 
   Account? getAccountWithName(String name) {
-    return _accounts.value.isEmpty ? null : _accounts.value.where((element) => element.name == name).first;
+    List<Account> result = _accounts.value.where((element) => element.name == name).toList();
+    
+    return result.isEmpty ? null : result.first;
   }
 }

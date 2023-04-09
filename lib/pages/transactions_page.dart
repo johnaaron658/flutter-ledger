@@ -54,40 +54,28 @@ class TransactionsPage extends NavPage {
     );
   }
 
-  void onIncomePressed() async {
-    // todo
+  void onIncomePressed() {
+    showModal(TransactionType.Income);
   }
 
   void onTransferPressed() {
-    showModal();
+    showModal(TransactionType.Transfer);
   }
 
   void onExpensePressed() {
-    // todo
+    showModal(TransactionType.Expense);
   }
 
-  void showModal() {
+  void showModal(TransactionType type) {
     showModalBottomSheet(
       isScrollControlled: true,
         builder: (context) {
-          return TransactionInputModal(onModalClosed: () {
+          return TransactionForm(onFormClosed: () {
             Navigator.pop(context);
-          },);
+          },
+          transactionType: type,);
         },
         context: pageContext);
-  }
-}
-
-class TransactionInputModal extends StatelessWidget {
-  final Function onModalClosed;
-  TransactionInputModal({
-    Key? key,
-    required this.onModalClosed,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return TransactionForm(onFormClosed: onModalClosed,);
   }
 }
 

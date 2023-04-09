@@ -5,21 +5,28 @@ import 'package:intl/intl.dart';
 import 'package:ledger/services/accounts_repository.dart';
 import 'package:ledger/services/transactions_repository.dart';
 
+enum TransactionType {
+  Transfer,
+  Income,
+  Expense,
+}
+
 class TransactionForm extends StatefulWidget {
   final Function onFormClosed;
+  final TransactionType transactionType;
 
-
-  const TransactionForm({super.key, required this.onFormClosed}); 
+  const TransactionForm({
+    super.key, 
+    required this.onFormClosed,
+    required this.transactionType,
+  }); 
 
   @override
   State<TransactionForm> createState() => _TransactionFormState();
 }
 
 class _TransactionFormState extends State<TransactionForm> {
-
   final transactionRepo = GetIt.instance.get<TransactionsRepo>();
-
-  TextEditingController amountController = TextEditingController();
 
   late Account accountFrom;
   late Account accountTo;
@@ -29,6 +36,7 @@ class _TransactionFormState extends State<TransactionForm> {
 
   @override
   Widget build(BuildContext context) {
+    TransactionType type = widget.transactionType;
     return Container(
             height: MediaQuery.of(context).size.height * 0.5 + MediaQuery.of(context).viewInsets.bottom * 0.7,
             decoration: const BoxDecoration(
@@ -44,11 +52,11 @@ class _TransactionFormState extends State<TransactionForm> {
                         children: [
                           Expanded(
                             flex: 1,
-                            child: AccountField(labelText: 'Account From', onAccountChanged: ((account) => accountFrom = account)),
+                            child: AccountField(labelText: type == TransactionType.Income ? 'Income From' : 'From Account', onAccountChanged: ((account) => accountFrom = account), transactionType: type, isCredit: true),
                           ),
                           Expanded(
                             flex: 1,
-                            child: AccountField(labelText: 'Account To', onAccountChanged: ((account) => accountTo = account)),
+                            child: AccountField(labelText: type == TransactionType.Expense ? 'Expense To' : 'To Account', onAccountChanged: ((account) => accountTo = account), transactionType: type, isCredit: false),
                           ),
                         ],
                       ),
@@ -56,29 +64,9 @@ class _TransactionFormState extends State<TransactionForm> {
                         children: [
                           Expanded(
                             flex: 6,
-                            child: TextField(
-                              controller: amountController,
-                              decoration: const InputDecoration(
-                                labelText: 'Amount',
-                              ),
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),],
-                              onChanged: (value) {
-                                final formatter = NumberFormat('#,###.##', 'en_US');
-                                amount = double.tryParse(value) ?? 0.00;
-                                final text = formatter.format(amount);
-                                if (text != value) {
-                                  // Set the formatted text back to the TextField
-                                  final valueToSet = value.substring(value.length - 1) == '.' ? value : text;
-                                  amountController.value = TextEditingValue(
-                                    text:  valueToSet,
-                                    selection: TextSelection.collapsed(offset: valueToSet.length),
-                                  );
-                                } 
-                              },
-                            ),
+                            child: AmountField(labelText: 'Amount', initialValue: 0, onAmountChanged: ((amt) => amount = amt)),
                           ), 
-                          Expanded(flex: 4, child: DateField(labelText: 'Date', initialDate: DateTime.now(), onDateChanged: (date) {})),
+                          Expanded(flex: 4, child: DateField(labelText: 'Date', initialDate: DateTime.now(), onDateChanged: (dt) {date = dt;})),
                         ],
                       ),
                       TextField(
@@ -95,11 +83,62 @@ class _TransactionFormState extends State<TransactionForm> {
                             Transaction.fromValues(amount, accountTo, accountFrom, date, details));
                           widget.onFormClosed();
                         },
-                        child: const Text('Transfer'),
+                        child: Text(getButtonText(type)),
                       ),
                     ],
                 ),
           );
+  }
+
+  String getButtonText(TransactionType type) {
+    switch (type) {
+      case TransactionType.Income:
+        return 'Cash In';
+      case TransactionType.Expense:
+        return 'Spend';
+      default:
+        return 'Transfer';
+    }
+  }
+}
+
+class AmountField extends StatefulWidget {
+  final String labelText;
+  final double initialValue;
+  final Function(double) onAmountChanged;
+
+  const AmountField({super.key, 
+    required this.labelText,
+    required this.initialValue,
+    required this.onAmountChanged,
+  });
+
+  @override
+  _AmountFieldState createState() => _AmountFieldState();
+}
+
+class _AmountFieldState extends State<AmountField> {
+  late double amount;
+  
+  @override
+  void initState() {
+    super.initState();
+    amount = widget.initialValue;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+      return TextField(
+                decoration: InputDecoration(
+                  labelText: widget.labelText,
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (value) {
+                  final formatter = NumberFormat('#,###.##', 'en_US');
+                  amount = double.tryParse(value) ?? 0.00;
+                  widget.onAmountChanged(amount);
+                },
+              );
   }
 
 }
@@ -173,10 +212,14 @@ class _DateFieldState extends State<DateField> {
 class AccountField extends StatelessWidget {
   final String labelText;
   final Function(Account) onAccountChanged;
+  final TransactionType transactionType;
+  final bool isCredit;
 
   AccountField({super.key, 
     required this.labelText,
-    required this.onAccountChanged,
+    required this.onAccountChanged, 
+    required this.transactionType,
+    required this.isCredit,
   });
 
   final accountsRepo = GetIt.instance.get<AccountsRepo>();
@@ -191,7 +234,23 @@ class AccountField extends StatelessWidget {
         optionsBuilder: (textEditingValue) {
           final accounts = snapshot.data;
           if (accounts != null) {
-            return filterOptions(accounts, textEditingValue);
+            if (isCredit) {
+              switch(transactionType){
+                case TransactionType.Transfer:
+                case TransactionType.Expense:
+                  return filterOptions(accounts, textEditingValue, [AccountType.Asset, AccountType.Liability]);
+                case TransactionType.Income:
+                  return filterOptions(accounts, textEditingValue, [AccountType.Income]);
+              }
+            } else {
+              switch(transactionType){
+                case TransactionType.Expense:
+                  return filterOptions(accounts, textEditingValue, [AccountType.Expense]);
+                case TransactionType.Income:
+                case TransactionType.Transfer:
+                  return filterOptions(accounts, textEditingValue, [AccountType.Asset, AccountType.Liability]);
+              }
+            }
           }
           return [];
         } , 
@@ -203,22 +262,38 @@ class AccountField extends StatelessWidget {
               labelText: labelText,
             ),
             onChanged: (value) {
-              onAccountChanged(getAccountWithName(value));
+              onAccountChanged(getAccountWithName(value, transactionType));
             },
           );
         },
-        onSelected: (value) => onAccountChanged(getAccountWithName(value)),
+        onSelected: (value) => onAccountChanged(getAccountWithName(value, transactionType)),
       )
     );
   }
 
-  Account getAccountWithName(String name) {
-    return accountsRepo.getAccountWithName(name) ?? Account.fromName(name);
+  Account getAccountWithName(String name, TransactionType type) {
+    Account? account = accountsRepo.getAccountWithName(name);
+    if (account == null) {
+      account = Account.fromName(name);
+      switch(type) {
+        case TransactionType.Expense:
+          account.accountType = AccountType.Expense;
+          break;
+        case TransactionType.Income:
+          account.accountType = AccountType.Income;
+          break;
+        case TransactionType.Transfer:
+          account.accountType = Account.defaultAccountType;
+          break;
+      }
+    }
+    return account;
   }
 
-  List<String> filterOptions(List<Account> accounts, TextEditingValue textEditingValue) => 
+  List<String> filterOptions(List<Account> accounts, TextEditingValue textEditingValue, List<AccountType> types) => 
       accounts
-      .map((e) => e.name)
-      .where((element) => element.toLowerCase().startsWith(textEditingValue.text.toLowerCase()))
+      .where((element) => types.contains(element.accountType))
+      .where((element) => element.name.toLowerCase().startsWith(textEditingValue.text.toLowerCase()))
+      .map((element) => element.name)
       .toList();
 }
