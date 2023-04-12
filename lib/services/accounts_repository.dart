@@ -1,4 +1,3 @@
-
 import 'package:ledger/services/app_database.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sqflite/sqflite.dart';
@@ -46,8 +45,14 @@ class Account {
     limit = 0;
   }
 
-  Account.fromFields(this.id, 
-      this.balance, this.name, this.currency, this.accountType, this.limit,);
+  Account.fromFields(
+    this.id,
+    this.balance,
+    this.name,
+    this.currency,
+    this.accountType,
+    this.limit,
+  );
 
   Account.fromMap(Map<String, Object?> map, String key) {
     id = map[key + colId] as int;
@@ -118,8 +123,9 @@ class AccountsRepo {
 
   Future refreshAccountList() async {
     Database db = await AppDatabase.instance.db;
-    _accounts.add(await db.query(Account.tbAccounts)
-                          .then((res) => res.map((e) => Account.fromMap(e, '')).toList()));
+    _accounts.add(await db
+        .query(Account.tbAccounts)
+        .then((res) => res.map((e) => Account.fromMap(e, '')).toList()));
   }
 
   Future addAccount(Account account) async {
@@ -129,8 +135,15 @@ class AccountsRepo {
   }
 
   Account? getAccountWithName(String name) {
-    List<Account> result = _accounts.value.where((element) => element.name == name).toList();
-    
+    List<Account> result =
+        _accounts.value.where((element) => element.name == name).toList();
+
     return result.isEmpty ? null : result.first;
+  }
+
+  Future updateAccount(Account account) async {
+    Database db = await AppDatabase.instance.db;
+    await db.update(Account.tbAccounts, account.toMap(),
+        where: '${Account.colId} = ?', whereArgs: [account.id]);
   }
 }

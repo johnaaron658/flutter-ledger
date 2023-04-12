@@ -26,7 +26,7 @@ class Transaction {
                                 FOREIGN KEY (${Transaction.colCredit}) REFERENCES ${Account.tbAccounts} (${Account.colId})
                               );
                               ''';
-  static const String queryTableSql =  '''
+  static const String queryTableSql = '''
                               SELECT 
                               t.${Transaction.colId},
                               t.${Transaction.colAmount},
@@ -75,8 +75,12 @@ class Transaction {
     details = '';
   }
 
-  Transaction.fromFields(this.id, this.amount, this.debit, this.credit, this.dateTime, this.details);
-  Transaction.fromValues(this.amount, this.debit, this.credit, this.dateTime, this.details);
+  Transaction.fromFields(this.id, this.amount, this.debit, this.credit,
+      this.dateTime, this.details);
+
+  Transaction.fromValues(
+      this.amount, this.debit, this.credit, this.dateTime, this.details);
+
   Transaction.fromMap(Map<String, Object?> map) {
     id = (map[colId] ?? 0) as int;
     amount = map[colAmount] as double;
@@ -97,7 +101,6 @@ class Transaction {
   }
 }
 
-
 class TransactionsRepo {
   final _transactions = BehaviorSubject<List<Transaction>>.seeded(List.empty());
   final accountRepo = GetIt.instance.get<AccountsRepo>();
@@ -106,21 +109,23 @@ class TransactionsRepo {
 
   Future refreshTransactionList() async {
     Database db = await AppDatabase.instance.db;
-    _transactions.add(await db.rawQuery(Transaction.queryTableSql)
-                              .then((value) => value.map((e) => Transaction.fromMap(e)).toList()));
+    _transactions.add(await db
+        .rawQuery(Transaction.queryTableSql)
+        .then((value) => value.map((e) => Transaction.fromMap(e)).toList()));
   }
 
   // for testing sql
   Future printSql() async {
     Database db = await AppDatabase.instance.db;
     print('printing values ----------------------');
-    await db.rawQuery(Transaction.queryTableSql)
-                              .then((value) => print(value));
+    await db.rawQuery(Transaction.queryTableSql).then((value) => print(value));
   }
 
   Future addTransaction(Transaction transaction) async {
-    Account? debitAccount = accountRepo.getAccountWithName(transaction.debit.name);
-    Account? creditAccount = accountRepo.getAccountWithName(transaction.credit.name);
+    Account? debitAccount =
+        accountRepo.getAccountWithName(transaction.debit.name);
+    Account? creditAccount =
+        accountRepo.getAccountWithName(transaction.credit.name);
     if (debitAccount == null) {
       await accountRepo.addAccount(transaction.debit);
     }
@@ -131,7 +136,8 @@ class TransactionsRepo {
     transaction.credit.balance -= transaction.amount;
 
     Database db = await AppDatabase.instance.db;
-    transaction.id = await db.insert(Transaction.tbTransactions, transaction.toMap());
+    transaction.id =
+        await db.insert(Transaction.tbTransactions, transaction.toMap());
 
     // TODO: add updating account balances
     await refreshTransactionList();
@@ -139,7 +145,8 @@ class TransactionsRepo {
 
   void removeTransaction(int id) async {
     Database db = await AppDatabase.instance.db;
-    await db.delete(Transaction.tbTransactions, where: '${Transaction.colId} = ?', whereArgs: [id]);
+    await db.delete(Transaction.tbTransactions,
+        where: '${Transaction.colId} = ?', whereArgs: [id]);
 
     // TODO: add updating account balances
     await refreshTransactionList();
@@ -147,7 +154,8 @@ class TransactionsRepo {
 
   Future updateTransaction(Transaction transaction) async {
     Database db = await AppDatabase.instance.db;
-    await db.update(Transaction.tbTransactions, transaction.toMap(), where: '${Transaction.colId} = ?', whereArgs: [transaction.id]);
+    await db.update(Transaction.tbTransactions, transaction.toMap(),
+        where: '${Transaction.colId} = ?', whereArgs: [transaction.id]);
 
     // TODO: add updating account balances
     await refreshTransactionList();

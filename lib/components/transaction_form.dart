@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fuzzywuzzy/fuzzywuzzy.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:ledger/services/accounts_repository.dart';
@@ -16,12 +17,11 @@ class TransactionForm extends StatefulWidget {
   final TransactionType transactionType;
   final Transaction? transaction;
 
-  const TransactionForm({
-    super.key, 
-    required this.onFormClosed,
-    required this.transactionType,
-    required this.transaction
-  }); 
+  const TransactionForm(
+      {super.key,
+      required this.onFormClosed,
+      required this.transactionType,
+      required this.transaction});
 
   @override
   State<TransactionForm> createState() => _TransactionFormState();
@@ -47,6 +47,9 @@ class _TransactionFormState extends State<TransactionForm> {
       date = widget.transaction!.date;
       details = widget.transaction!.details;
       detailsController.value = TextEditingValue(text: details);
+    } else {
+      accountFrom = null;
+      accountTo = null;
     }
   }
 
@@ -54,92 +57,91 @@ class _TransactionFormState extends State<TransactionForm> {
   Widget build(BuildContext context) {
     TransactionType type = widget.transactionType;
     return Container(
-            height: MediaQuery.of(context).size.height * 0.5 + MediaQuery.of(context).viewInsets.bottom * 0.7,
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-
-            ),
-            child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: AccountField(
-                                    labelText: type == TransactionType.Income
-                                        ? 'Income From'
-                                        : 'From Account',
-                                    onAccountChanged: ((account) => accountFrom = account),
-                                    transactionType: type,
-                                    isCredit: true,
-                                    initialValue: accountFrom != null ? accountFrom!.name : '',),
-                          ),
-                          Expanded(
-                            flex: 1,
-                            child: AccountField(
-                                    labelText: type == TransactionType.Expense
-                                        ? 'Expense To'
-                                        : 'To Account',
-                                    onAccountChanged: ((account) => accountTo = account),
-                                    transactionType: type,
-                                    isCredit: false,
-                                    initialValue: accountTo != null ? accountTo!.name : ''),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 6,
-                            child: AmountField(
-                                labelText: 'Amount',
-                                initialValue: amount,
-                                onAmountChanged: ((amt) => amount = amt)),
-                          ), 
-                          Expanded(
-                              flex: 4,
-                              child: DateField(
-                                  labelText: 'Date',
-                                  initialDate: date,
-                                  onDateChanged: (dt) {
-                                    date = dt;
-                                  }
-                                )
-                          ),
-                        ],
-                      ),
-                      TextField(
-                        controller: detailsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Details',
-                        ),
-                        onChanged: (value) {
-                          details = value;
-                        },
-                      ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (widget.transaction == null) {
-                            await transactionRepo.addTransaction(
-                              Transaction.fromValues(amount, accountTo!, accountFrom!, date, details));
-                          } else {
-                            widget.transaction!.amount = amount;
-                            widget.transaction!.accountFrom = accountFrom!;
-                            widget.transaction!.accountTo = accountTo!;
-                            widget.transaction!.date = date;
-                            widget.transaction!.details = details;
-                            await transactionRepo.updateTransaction(widget.transaction!);
-                          }
-                          widget.onFormClosed();
-                        },
-                        child: Text(getButtonText(type, widget.transaction)),
-                      ),
-                    ],
+      height: MediaQuery.of(context).size.height * 0.5 +
+          MediaQuery.of(context).viewInsets.bottom * 0.7,
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: AccountField(
+                  labelText: type == TransactionType.Income
+                      ? 'Income From'
+                      : 'From Account',
+                  onAccountChanged: ((account) => accountFrom = account),
+                  transactionType: type,
+                  isCredit: true,
+                  initialValue: accountFrom != null ? accountFrom!.name : '',
                 ),
-          );
+              ),
+              Expanded(
+                flex: 1,
+                child: AccountField(
+                    labelText: type == TransactionType.Expense
+                        ? 'Expense To'
+                        : 'To Account',
+                    onAccountChanged: ((account) => accountTo = account),
+                    transactionType: type,
+                    isCredit: false,
+                    initialValue: accountTo != null ? accountTo!.name : ''),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                flex: 6,
+                child: AmountField(
+                    labelText: 'Amount',
+                    initialValue: amount,
+                    onAmountChanged: ((amt) => amount = amt)),
+              ),
+              Expanded(
+                  flex: 4,
+                  child: DateField(
+                      labelText: 'Date',
+                      initialDate: date,
+                      onDateChanged: (dt) {
+                        date = dt;
+                      })),
+            ],
+          ),
+          TextField(
+            controller: detailsController,
+            decoration: const InputDecoration(
+              labelText: 'Details',
+            ),
+            onChanged: (value) {
+              details = value;
+            },
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (widget.transaction == null) {
+                await transactionRepo.addTransaction(Transaction.fromValues(
+                    amount, accountTo!, accountFrom!, date, details));
+              } else {
+                widget.transaction!.amount = amount;
+                widget.transaction!.accountFrom = accountFrom!;
+                widget.transaction!.accountTo = accountTo!;
+                widget.transaction!.date = date;
+                widget.transaction!.details = details;
+                await transactionRepo.updateTransaction(widget.transaction!);
+              }
+              widget.onFormClosed();
+            },
+            child: Text(getButtonText(type, widget.transaction)),
+          ),
+        ],
+      ),
+    );
   }
 
   String getButtonText(TransactionType type, Transaction? transaction) {
@@ -163,7 +165,8 @@ class AmountField extends StatefulWidget {
   final double initialValue;
   final Function(double) onAmountChanged;
 
-  const AmountField({super.key, 
+  const AmountField({
+    super.key,
     required this.labelText,
     required this.initialValue,
     required this.onAmountChanged,
@@ -177,7 +180,7 @@ class _AmountFieldState extends State<AmountField> {
   late double amount;
   TextEditingController controller = TextEditingController();
   final formatter = NumberFormat('#,###.##', 'en_US');
-  
+
   @override
   void initState() {
     super.initState();
@@ -187,19 +190,18 @@ class _AmountFieldState extends State<AmountField> {
 
   @override
   Widget build(BuildContext context) {
-      return TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  labelText: widget.labelText,
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) {
-                  amount = double.tryParse(value) ?? 0.00;
-                  widget.onAmountChanged(amount);
-                },
-              );
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: widget.labelText,
+      ),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      onChanged: (value) {
+        amount = double.tryParse(value) ?? 0.00;
+        widget.onAmountChanged(amount);
+      },
+    );
   }
-
 }
 
 class DateField extends StatefulWidget {
@@ -207,7 +209,8 @@ class DateField extends StatefulWidget {
   final DateTime initialDate;
   final Function(DateTime) onDateChanged;
 
-  const DateField({super.key, 
+  const DateField({
+    super.key,
     required this.labelText,
     required this.initialDate,
     required this.onDateChanged,
@@ -275,9 +278,10 @@ class AccountField extends StatelessWidget {
   final bool isCredit;
   final String initialValue;
 
-  AccountField({super.key, 
+  AccountField({
+    super.key,
     required this.labelText,
-    required this.onAccountChanged, 
+    required this.onAccountChanged,
     required this.transactionType,
     required this.isCredit,
     required this.initialValue,
@@ -290,54 +294,60 @@ class AccountField extends StatelessWidget {
     accountsRepo.refreshAccountList();
 
     return StreamBuilder<List<Account>>(
-      stream: accountsRepo.accountStream,
-      builder: (context, snapshot) => Autocomplete<String>(
-        initialValue: TextEditingValue(text: initialValue),
-        optionsBuilder: (textEditingValue) {
-          final accounts = snapshot.data;
-          if (accounts != null) {
-            if (isCredit) {
-              switch(transactionType){
-                case TransactionType.Transfer:
-                case TransactionType.Expense:
-                  return filterOptions(accounts, textEditingValue, [AccountType.Asset, AccountType.Liability]);
-                case TransactionType.Income:
-                  return filterOptions(accounts, textEditingValue, [AccountType.Income]);
-              }
-            } else {
-              switch(transactionType){
-                case TransactionType.Expense:
-                  return filterOptions(accounts, textEditingValue, [AccountType.Expense]);
-                case TransactionType.Income:
-                case TransactionType.Transfer:
-                  return filterOptions(accounts, textEditingValue, [AccountType.Asset, AccountType.Liability]);
-              }
-            }
-          }
-          return [];
-        } , 
-        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-          return TextField(
-            controller: textEditingController,
-            focusNode: focusNode,
-            decoration: InputDecoration(
-              labelText: labelText,
-            ),
-            onChanged: (value) {
-              onAccountChanged(getAccountWithName(value, transactionType));
-            },
-          );
-        },
-        onSelected: (value) => onAccountChanged(getAccountWithName(value, transactionType)),
-      )
-    );
+        stream: accountsRepo.accountStream,
+        builder: (context, snapshot) => Autocomplete<String>(
+              initialValue: TextEditingValue(text: initialValue),
+              optionsBuilder: (textEditingValue) async {
+                final accounts = snapshot.data;
+                if (accounts != null) {
+                  if (isCredit) {
+                    switch (transactionType) {
+                      case TransactionType.Transfer:
+                      case TransactionType.Expense:
+                        return filterOptions(accounts, textEditingValue,
+                            [AccountType.Asset, AccountType.Liability]);
+                      case TransactionType.Income:
+                        return filterOptions(
+                            accounts, textEditingValue, [AccountType.Income]);
+                    }
+                  } else {
+                    switch (transactionType) {
+                      case TransactionType.Expense:
+                        return filterOptions(
+                            accounts, textEditingValue, [AccountType.Expense]);
+                      case TransactionType.Income:
+                      case TransactionType.Transfer:
+                        return filterOptions(accounts, textEditingValue,
+                            [AccountType.Asset, AccountType.Liability]);
+                    }
+                  }
+                }
+                return [];
+              },
+              fieldViewBuilder: (context, textEditingController, focusNode,
+                  onFieldSubmitted) {
+                return TextField(
+                  controller: textEditingController,
+                  focusNode: focusNode,
+                  decoration: InputDecoration(
+                    labelText: labelText,
+                  ),
+                  onChanged: (value) {
+                    onAccountChanged(
+                        getAccountWithName(value, transactionType));
+                  },
+                );
+              },
+              onSelected: (value) =>
+                  onAccountChanged(getAccountWithName(value, transactionType)),
+            ));
   }
 
   Account getAccountWithName(String name, TransactionType type) {
     Account? account = accountsRepo.getAccountWithName(name);
     if (account == null) {
       account = Account.fromName(name);
-      switch(type) {
+      switch (type) {
         case TransactionType.Expense:
           account.accountType = AccountType.Expense;
           break;
@@ -352,10 +362,17 @@ class AccountField extends StatelessWidget {
     return account;
   }
 
-  List<String> filterOptions(List<Account> accounts, TextEditingValue textEditingValue, List<AccountType> types) => 
-      accounts
-      .where((element) => types.contains(element.accountType))
-      .where((element) => element.name.toLowerCase().startsWith(textEditingValue.text.toLowerCase()))
-      .map((element) => element.name)
-      .toList();
+  List<String> filterOptions(List<Account> accounts,
+      TextEditingValue textEditingValue, List<AccountType> types) {
+    final filteredAccounts =
+        accounts.where((account) => types.contains(account.accountType));
+    final searchResults = extractAllSorted(
+        query: textEditingValue.text,
+        choices: filteredAccounts.map((account) => account.name).toList());
+    return searchResults
+        .map(
+          (e) => e.choice,
+        )
+        .toList();
+  }
 }
